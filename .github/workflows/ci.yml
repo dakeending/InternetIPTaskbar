@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (warnings are errors)
+        run: dotnet build -c Release --no-restore -p:TreatWarningsAsErrors=true
+
+      - name: Test
+        run: dotnet test -c Release --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Publish single-file exe
+        run: dotnet publish src/InternetIPTaskbar/InternetIPTaskbar.csproj -c Release -r win-x64 --self-contained true -o publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InternetIPTaskbar-win-x64
+          path: publish/InternetIPTaskbar.exe
+          if-no-files-found: error
+          retention-days: 14

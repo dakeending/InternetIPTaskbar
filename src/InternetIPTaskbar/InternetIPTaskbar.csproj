@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>AnyCPU</Platforms>
+    <AssemblyName>InternetIPTaskbar</AssemblyName>
+    <RootNamespace>InternetIPTaskbar</RootNamespace>
+
+    <!-- The single place where the version is set: the installer, User-Agent and log read it from here. -->
+    <Version>2.0.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
+    <Product>InternetIPTaskbar</Product>
+    <Description>Shows your public IP address and country flag on the Windows taskbar. Handy for checking that a VPN is really on.</Description>
+    <Authors>dakeending</Authors>
+    <Copyright>Copyright (c) 2026 dakeending</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/dakeending/InternetIPTaskbar</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+
+    <!-- Publish as one compressed self-contained exe. -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <!-- Flags from Flags\ are embedded in the exe (get them with scripts\fetch-flags.ps1).
+       Without the folder content the program downloads flags on demand and caches them. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Flags\*.png" LogicalName="Flags.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="InternetIPTaskbar.Tests" />
+  </ItemGroup>
+</Project>

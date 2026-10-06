@@ -1,0 +1,16 @@
+# Normalise line endings; Git decides per file type.
+* text=auto
+
+*.cs      text diff=csharp
+*.csproj  text
+*.sln     text eol=crlf
+*.iss     text eol=crlf
+*.ps1     text eol=crlf
+*.md      text
+*.yml     text
+*.html    text
+
+# Binary files
+*.png  binary
+*.ico  binary
+*.pdf  binary

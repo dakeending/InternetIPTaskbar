@@ -1,0 +1,31 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+artifacts/
+publish/
+TestResults/
+*.nupkg
+
+# IDE / user files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.rsuser
+*.DotSettings.user
+
+# Logs and local data
+*.log
+
+# Country flags are downloaded at build time (scripts/fetch-flags.ps1), not stored in git
+src/InternetIPTaskbar/Flags/*.png
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Temporary files produced by tools
+*.tmp
+arch-pdf-*/

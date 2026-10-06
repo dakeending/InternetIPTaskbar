@@ -1,0 +1,49 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Logs contain IP addresses - remove anything you do not want to publish.**
+  - type: input
+    id: version
+    attributes:
+      label: InternetIPTaskbar version
+      description: Shown in the tray menu next to "Exit".
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and setup
+      description: Windows build, display scaling, taskbar position, number of monitors.
+      placeholder: "Windows 11 23H2, 150%, taskbar at the bottom, 1 monitor"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect and what did you see instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Tray menu -> Settings -> Verbose log, reproduce, then Open log. Paste the relevant lines.
+      render: text
+  - type: input
+    id: vpn
+    attributes:
+      label: VPN / network setup (optional)
+      placeholder: "WireGuard full tunnel, IPv6 disabled"

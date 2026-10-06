@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>InternetIPTaskbar — архитектура</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm; }
+  :root {
+    --ink:#0f172a; --muted:#475569; --line:#cbd5e1; --accent:#2563eb;
+    --ui-bg:#eff6ff; --ui-bd:#3b82f6; --bg-bg:#ecfdf5; --bg-bd:#10b981;
+    --ext-bg:#f1f5f9; --ext-bd:#64748b; --x-bg:#fefce8; --x-bd:#ca8a04;
+    --warn:#dc2626;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); font-size: 10.5pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 22pt; margin: 0 0 2pt; letter-spacing: -.3pt; }
+  .sub { color: var(--muted); margin: 0 0 10pt; }
+  h2 { font-size: 13.5pt; margin: 16pt 0 6pt; padding-bottom: 3pt; border-bottom: 2px solid var(--accent); break-after: avoid; }
+  h2 span { color: var(--accent); }
+  p { margin: 4pt 0 6pt; }
+  figure { margin: 6pt 0 8pt; break-inside: avoid; }
+  figure svg { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  figcaption { font-size: 9pt; color: var(--muted); margin-top: 3pt; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.5pt; break-inside: auto; }
+  th, td { border: 1px solid var(--line); padding: 4pt 6pt; vertical-align: top; text-align: left; }
+  th { background: #f8fafc; }
+  tr { break-inside: avoid; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9pt; background: #f1f5f9; padding: 0 3px; border-radius: 3px; }
+  ul, ol { margin: 4pt 0 6pt 16pt; padding: 0; }
+  li { margin-bottom: 2pt; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 6pt 9pt; break-inside: avoid; }
+  .card h3 { margin: 0 0 3pt; font-size: 10.5pt; color: var(--accent); }
+  .pb { break-before: page; }
+  /* SVG */
+  svg text { font-family: "Segoe UI", Arial, sans-serif; fill: #0f172a; }
+  .t  { font-size: 13px; font-weight: 600; }
+  .s  { font-size: 10.5px; fill: #475569; }
+  .lb { font-size: 10.5px; fill: #1e3a8a; font-weight: 600; }
+  .g  { font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+  .box { fill: #fff; stroke: #334155; stroke-width: 1.4; }
+  .ui  { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.4; }
+  .bg  { fill: #d1fae5; stroke: #059669; stroke-width: 1.4; }
+  .ext { fill: #e2e8f0; stroke: #64748b; stroke-width: 1.4; }
+  .xc  { fill: #fef9c3; stroke: #ca8a04; stroke-width: 1.4; }
+  .grpui { fill: #eff6ff; stroke: #3b82f6; stroke-width: 1.4; stroke-dasharray: 6 4; }
+  .grpbg { fill: #ecfdf5; stroke: #10b981; stroke-width: 1.4; stroke-dasharray: 6 4; }
+  .grpx  { fill: #fefce8; stroke: #ca8a04; stroke-width: 1.4; stroke-dasharray: 6 4; }
+  .ln  { stroke: #334155; stroke-width: 1.4; fill: none; }
+  .lnr { stroke: #dc2626; stroke-width: 1.6; fill: none; }
+  .life { stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 4 4; }
+</style>
+</head>
+<body>
+
+<h1>InternetIPTaskbar 2.0.0</h1>
+<p class="sub">Архитектура проекта · показывает на панели задач внешний IP и флаг страны · WinForms, .NET 8</p>
+
+<p>Приложение без главного окна: живёт в трее и рисует маленькое окно «флаг + IP» над панелью задач. Код разделён на три части: <b>фоновый опрос сети</b> (<code>IpMonitor</code>), <b>неизменяемый снимок состояния</b> (<code>Snapshot</code>) и <b>интерфейс</b> (<code>TrayApp</code>, <code>OverlayForm</code>). Всё работает в одном процессе.</p>
+
+<h2><span>1.</span> Компоненты</h2>
+<figure>
+<svg viewBox="0 0 720 548" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+  </defs>
+
+  <rect class="box" x="150" y="14" width="180" height="46" rx="8"/>
+  <text class="t" x="240" y="35" text-anchor="middle">Program.cs</text>
+  <text class="s" x="240" y="51" text-anchor="middle">мьютекс · лог исключений</text>
+
+
+  <!-- UI group -->
+  <rect class="grpui" x="14" y="84" width="452" height="340" rx="10"/>
+  <text class="g" x="26" y="102" fill="#1d4ed8" style="fill:#1d4ed8">UI-ПОТОК (WinForms)</text>
+
+  <rect class="ui" x="150" y="112" width="180" height="52" rx="8"/>
+  <text class="t" x="240" y="134" text-anchor="middle">TrayApp</text>
+  <text class="s" x="240" y="152" text-anchor="middle">ApplicationContext · сборка всего</text>
+
+  <rect class="ui" x="28" y="202" width="130" height="54" rx="8"/>
+  <text class="t" x="93" y="224" text-anchor="middle">OverlayForm</text>
+  <text class="s" x="93" y="241" text-anchor="middle">окно «флаг + IP»</text>
+
+  <rect class="ui" x="175" y="202" width="130" height="54" rx="8"/>
+  <text class="t" x="240" y="224" text-anchor="middle">NotifyIcon + меню</text>
+  <text class="s" x="240" y="241" text-anchor="middle">значок, подсказка</text>
+
+  <rect class="ui" x="322" y="202" width="130" height="54" rx="8"/>
+  <text class="t" x="387" y="224" text-anchor="middle">FlagStore</text>
+  <text class="s" x="387" y="241" text-anchor="middle">ресурс → кэш → сеть</text>
+
+  <rect class="ui" x="28" y="296" width="130" height="54" rx="8"/>
+  <text class="t" x="93" y="318" text-anchor="middle">Taskbar</text>
+  <text class="s" x="93" y="335" text-anchor="middle">+ FullscreenDetector</text>
+
+  <rect class="ui" x="175" y="296" width="130" height="54" rx="8"/>
+  <text class="t" x="240" y="318" text-anchor="middle">Autostart</text>
+  <text class="s" x="240" y="335" text-anchor="middle">+ HornSound</text>
+
+  <rect class="ui" x="322" y="296" width="130" height="54" rx="8"/>
+  <text class="t" x="387" y="318" text-anchor="middle">Таймер 1 с</text>
+  <text class="s" x="387" y="335" text-anchor="middle">RefreshLayout()</text>
+
+  <rect class="ui" x="28" y="372" width="130" height="38" rx="8"/>
+  <text class="t" x="93" y="395" text-anchor="middle">NativeMethods</text>
+
+  <path class="ln" d="M215,164 L110,202" marker-end="url(#a)"/>
+  <path class="ln" d="M240,164 L240,202" marker-end="url(#a)"/>
+  <path class="ln" d="M265,164 L370,202" marker-end="url(#a)"/>
+  <path class="ln" d="M93,256 L93,296" marker-end="url(#a)"/>
+  <path class="ln" d="M93,350 L93,372" marker-end="url(#a)"/>
+  <path class="ln" d="M387,296 L160,246" marker-end="url(#a)" stroke-dasharray="4 3"/>
+
+  <path class="ln" d="M240,60 L240,110" marker-end="url(#a)"/>
+  <!-- Background group -->
+  <rect class="grpbg" x="500" y="84" width="206" height="340" rx="10"/>
+  <text class="g" x="512" y="102" style="fill:#047857">ФОНОВАЯ ЗАДАЧА</text>
+
+  <rect class="bg" x="516" y="112" width="174" height="56" rx="8"/>
+  <text class="t" x="603" y="134" text-anchor="middle">IpMonitor</text>
+  <text class="s" x="603" y="152" text-anchor="middle">цикл · состояния · тревога</text>
+
+  <rect class="bg" x="516" y="214" width="174" height="56" rx="8"/>
+  <text class="t" x="603" y="236" text-anchor="middle">IpClient</text>
+  <text class="s" x="603" y="254" text-anchor="middle">HTTP · голосование · гео</text>
+
+  <rect class="ext" x="516" y="312" width="174" height="98" rx="8"/>
+  <text class="t" x="603" y="332" text-anchor="middle">Внешние сервисы</text>
+  <text class="s" x="603" y="350" text-anchor="middle">ipify · icanhazip · amazon</text>
+  <text class="s" x="603" y="365" text-anchor="middle">ipinfo · ipwho.is · ipapi</text>
+  <text class="s" x="603" y="380" text-anchor="middle">api6.ipify (IPv6)</text>
+  <text class="s" x="603" y="395" text-anchor="middle">flagcdn (флаги)</text>
+
+  <path class="ln" d="M603,168 L603,214" marker-end="url(#a)"/>
+  <path class="ln" d="M603,270 L603,312" marker-end="url(#a)"/>
+
+  <!-- Snapshot -->
+  <path class="lnr" d="M516,140 L334,140" marker-end="url(#ar)"/>
+  <text class="lb" x="425" y="130" text-anchor="middle" style="fill:#b91c1c">Snapshot</text>
+  <text class="s" x="425" y="158" text-anchor="middle">ui.Post</text>
+
+  <!-- FlagStore to flagcdn hint -->
+  <path class="ln" d="M452,236 L478,236 L478,360 L514,360" stroke-dasharray="4 3" marker-end="url(#a)"/>
+
+  <!-- Cross-cutting -->
+  <rect class="grpx" x="14" y="444" width="692" height="86" rx="10"/>
+  <text class="g" x="26" y="462" style="fill:#a16207">СКВОЗНЫЕ МОДУЛИ</text>
+  <rect class="xc" x="30" y="474" width="200" height="44" rx="8"/>
+  <text class="t" x="130" y="494" text-anchor="middle">Settings</text>
+  <text class="s" x="130" y="509" text-anchor="middle">settings.json · интервалы</text>
+  <rect class="xc" x="260" y="474" width="200" height="44" rx="8"/>
+  <text class="t" x="360" y="494" text-anchor="middle">Log</text>
+  <text class="s" x="360" y="509" text-anchor="middle">app.log · ротация 3×1 МБ</text>
+  <rect class="xc" x="490" y="474" width="200" height="44" rx="8"/>
+  <text class="t" x="590" y="494" text-anchor="middle">AppInfo</text>
+  <text class="s" x="590" y="509" text-anchor="middle">версия · User-Agent · папка данных</text>
+</svg>
+<figcaption>Рис. 1. Два «мира»: UI-поток и фоновая задача. Связь только в одну сторону — неизменяемые <code>Snapshot</code>; пунктир — вспомогательные связи.</figcaption>
+</figure>
+
+<h2><span>2.</span> Модули</h2>
+<table>
+<tr><th style="width:24%">Файл</th><th>Роль</th></tr>
+<tr><td><code>Program.cs</code></td><td>Точка входа. Мьютекс без номера версии, перехват необработанных исключений в лог, запуск <code>TrayApp</code>.</td></tr>
+<tr><td><code>src/TrayApp.cs</code></td><td>Корень композиции. Создаёт настройки, монитор, окно и значок; раздаёт <code>Snapshot</code>; собирает меню, грузит флаги, показывает уведомления, играет гудок, управляет автозапуском и удалением.</td></tr>
+<tr><td><code>src/IpMonitor.cs</code></td><td>Единственный источник истины о сети. Фоновый цикл, состояния <code>Starting / Ok / Stale / Offline</code>, расчёт тревоги и IPv6-несоответствия, реакция на события сети.</td></tr>
+<tr><td><code>src/IpClient.cs</code></td><td>IPv4 по двум сервисам (третий — при расхождении), IPv6, геоданные цепочкой ipinfo → ipwho.is → ipapi.co с кэшем по IP.</td></tr>
+<tr><td><code>src/FlagStore.cs</code></td><td>Флаг: ресурс в exe → кэш на диске → flagcdn.com. Битый кэш удаляется, на диск пишется только декодированное.</td></tr>
+<tr><td><code>src/OverlayForm.cs</code></td><td>Только отображение: флаг или код страны, текст, размер и положение, цвета по теме и тревоге. Без фокуса, щелчок открывает меню.</td></tr>
+<tr><td><code>src/Taskbar.cs</code></td><td>Положение панели (любая сторона, автоскрытие, область уведомлений) и определение полноэкранного приложения.</td></tr>
+<tr><td><code>Settings / Log / AppInfo</code></td><td>Настройки в JSON (атомарная запись), лог с ротацией, версия и пути.</td></tr>
+<tr><td><code>Autostart / HornSound</code></td><td>Автозапуск через <code>HKCU\…\Run</code>; двойной гудок, синтезируется в WAV при первом вызове.</td></tr>
+</table>
+
+<h2 class="pb"><span>3.</span> Одна проверка: от триггера до экрана</h2>
+<figure>
+<svg viewBox="0 0 720 470" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <marker id="a2r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+  </defs>
+  <!-- headers -->
+  <rect class="xc" x="10" y="10" width="120" height="36" rx="8"/><text class="t" x="70" y="33" text-anchor="middle">Триггер</text>
+  <rect class="bg" x="155" y="10" width="120" height="36" rx="8"/><text class="t" x="215" y="33" text-anchor="middle">IpMonitor</text>
+  <rect class="bg" x="300" y="10" width="120" height="36" rx="8"/><text class="t" x="360" y="33" text-anchor="middle">IpClient</text>
+  <rect class="ui" x="445" y="10" width="120" height="36" rx="8"/><text class="t" x="505" y="33" text-anchor="middle">TrayApp</text>
+  <rect class="ui" x="590" y="10" width="120" height="36" rx="8"/><text class="t" x="650" y="33" text-anchor="middle">OverlayForm</text>
+  <!-- lifelines -->
+  <line class="life" x1="70" y1="46" x2="70" y2="456"/>
+  <line class="life" x1="215" y1="46" x2="215" y2="456"/>
+  <line class="life" x1="360" y1="46" x2="360" y2="456"/>
+  <line class="life" x1="505" y1="46" x2="505" y2="456"/>
+  <line class="life" x1="650" y1="46" x2="650" y2="456"/>
+
+  <!-- 1 -->
+  <path class="ln" d="M70,92 L213,92" marker-end="url(#a2)"/>
+  <text class="s" x="76" y="66">таймер интервала</text>
+  <text class="s" x="76" y="79">событие сети · «Проверить сейчас»</text>
+  <!-- 2 -->
+  <path class="ln" d="M215,128 L358,128" marker-end="url(#a2)"/>
+  <text class="s" x="222" y="121">GetIpv4Async</text>
+  <rect x="368" y="112" width="140" height="34" rx="6" fill="#fff" stroke="#94a3b8"/>
+  <text class="s" x="438" y="126" text-anchor="middle">2 сервиса параллельно,</text>
+  <text class="s" x="438" y="139" text-anchor="middle">3-й — при расхождении</text>
+  <!-- 3 -->
+  <path class="ln" d="M360,170 L217,170" marker-end="url(#a2)"/>
+  <text class="s" x="222" y="163">IP (голосование)</text>
+  <!-- publish 1 -->
+  <path class="lnr" d="M215,206 L503,206" marker-end="url(#a2r)"/>
+  <text class="lb" x="300" y="199" style="fill:#b91c1c">Snapshot: IP сразу</text>
+  <text class="s" x="300" y="219">Changed → ui.Post</text>
+  <!-- tray -> overlay -->
+  <path class="ln" d="M505,246 L648,246" marker-end="url(#a2)"/>
+  <text class="s" x="512" y="239">SetSnapshot / SetFlag</text>
+  <!-- geo -->
+  <path class="ln" d="M215,286 L358,286" marker-end="url(#a2)"/>
+  <text class="s" x="222" y="268">GetGeoAsync</text>
+  <text class="s" x="222" y="280">только при смене IP</text>
+  <path class="ln" d="M360,320 L217,320" marker-end="url(#a2)"/>
+  <text class="s" x="222" y="313">страна · провайдер (кэш)</text>
+  <!-- ipv6 -->
+  <path class="ln" d="M215,354 L358,354" marker-end="url(#a2)"/>
+  <text class="s" x="222" y="347">GetIpv6Async</text>
+  <text class="s" x="368" y="352">раз в 10 мин</text><text class="s" x="368" y="365">или при событии сети</text>
+  <!-- publish 2 -->
+  <path class="lnr" d="M215,392 L503,392" marker-end="url(#a2r)"/>
+  <text class="lb" x="300" y="385" style="fill:#b91c1c">Snapshot: страна, IPv6</text>
+  <!-- ui effects -->
+  <rect x="262" y="408" width="440" height="50" rx="6" fill="#fff" stroke="#94a3b8"/>
+  <text class="s" x="482" y="424" text-anchor="middle">смена страны → старый флаг убирается, грузится новый;</text>
+  <text class="s" x="482" y="438" text-anchor="middle">обновляются значок и подсказка; при тревоге —</text>
+  <text class="s" x="482" y="452" text-anchor="middle">уведомление и (по настройке) гудок</text>
+</svg>
+<figcaption>Рис. 2. Цикл проверки. IP публикуется сразу, страна и IPv6 дописываются отдельными снимками, чтобы медленный сервис не задерживал показ адреса.</figcaption>
+</figure>
+
+<div class="cols">
+  <div class="card"><h3>Что запускает проверку</h3>
+    <ul><li>таймер (интервал 1/3/5/30/60 с, по умолчанию 30);</li>
+    <li><code>NetworkChange</code>: через 2 и 8 с после включения/выключения VPN;</li>
+    <li>меню «Проверить сейчас», смена настроек.</li></ul></div>
+  <div class="card"><h3>Нагрузка на сервисы</h3>
+    <ul><li>обычная проверка — 2 запроса;</li>
+    <li>страна и провайдер — только при смене IP;</li>
+    <li>IPv6 — раз в 10 минут или при событии сети;</li>
+    <li>каждый запрос на новом соединении.</li></ul></div>
+</div>
+
+<h2 class="pb"><span>4.</span> Состояния сети и тревога</h2>
+<figure>
+<svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+  </defs>
+  <rect class="ext" x="14" y="70" width="104" height="54" rx="27"/>
+  <text class="t" x="66" y="93" text-anchor="middle">Starting</text><text class="s" x="66" y="109" text-anchor="middle">«…»</text>
+  <rect class="bg" x="210" y="70" width="104" height="54" rx="27"/>
+  <text class="t" x="262" y="93" text-anchor="middle">Ok</text><text class="s" x="262" y="109" text-anchor="middle">IP и флаг</text>
+  <rect class="xc" x="406" y="70" width="104" height="54" rx="27"/>
+  <text class="t" x="458" y="93" text-anchor="middle">Stale</text><text class="s" x="458" y="109" text-anchor="middle">IP серым</text>
+  <rect class="ext" x="602" y="70" width="104" height="54" rx="27" style="fill:#fee2e2;stroke:#dc2626"/>
+  <text class="t" x="654" y="93" text-anchor="middle">Offline</text><text class="s" x="654" y="109" text-anchor="middle">«нет сети»</text>
+
+  <path class="ln" d="M118,97 L208,97" marker-end="url(#a3)"/>
+  <text class="s" x="163" y="88" text-anchor="middle">успех</text>
+  <path class="ln" d="M314,97 L404,97" marker-end="url(#a3)"/>
+  <text class="s" x="359" y="88" text-anchor="middle">сбой</text>
+  <path class="ln" d="M510,97 L600,97" marker-end="url(#a3)"/>
+  <text class="s" x="555" y="76" text-anchor="middle">3 сбоя подряд</text>
+  <text class="s" x="555" y="88" text-anchor="middle">или нет сети</text>
+  <!-- back arrows -->
+  <path class="ln" d="M440,124 Q360,196 284,124" marker-end="url(#a3)"/>
+  <text class="s" x="362" y="148" text-anchor="middle">любой успех</text>
+  <path class="ln" d="M654,124 Q460,262 262,124" marker-end="url(#a3)"/>
+  <text class="s" x="470" y="214" text-anchor="middle">любой успех</text>
+  <!-- self loop -->
+  <path class="ln" d="M236,70 C220,24 304,24 288,70" marker-end="url(#a3)"/>
+  <text class="s" x="262" y="26" text-anchor="middle">успех: данные обновлены</text>
+
+  <rect x="14" y="262" width="330" height="64" rx="8" fill="#fff" stroke="#94a3b8"/>
+  <text class="t" x="26" y="282">После сбоя</text>
+  <text class="s" x="26" y="299">повтор каждые 5 с вместо обычного интервала,</text>
+  <text class="s" x="26" y="313">чтобы быстро вернуться, когда сеть восстановится</text>
+
+  <rect x="360" y="262" width="346" height="64" rx="8" fill="#fef2f2" stroke="#dc2626"/>
+  <text class="t" x="372" y="282" style="fill:#b91c1c">Тревога (Alert) — признак поверх Ok / Stale</text>
+  <text class="s" x="372" y="299">IP или страна совпали с запомненными «реальными»:</text>
+  <text class="s" x="372" y="313">красное окно · уведомление · по настройке — гудок</text>
+</svg>
+<figcaption>Рис. 3. Состояния <code>NetState</code>. Offline не отображает старый IP: для программы контроля VPN это был бы худший вариант.</figcaption>
+</figure>
+
+<h2><span>5.</span> Окно на панели задач</h2>
+<figure>
+<svg viewBox="0 0 720 270" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+  </defs>
+  <rect x="10" y="10" width="700" height="150" rx="6" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text class="s" x="22" y="30">рабочий стол / окна приложений</text>
+  <!-- taskbar -->
+  <rect x="10" y="160" width="700" height="48" fill="#111827"/>
+  <rect x="18" y="170" width="28" height="28" rx="3" fill="#2563eb"/>
+  <rect x="58" y="170" width="28" height="28" rx="3" fill="#374151"/><rect x="94" y="170" width="28" height="28" rx="3" fill="#374151"/><rect x="130" y="170" width="28" height="28" rx="3" fill="#374151"/><rect x="166" y="170" width="28" height="28" rx="3" fill="#374151"/>
+  <text x="300" y="189" font-size="11" style="fill:#94a3b8" text-anchor="middle">кнопки задач</text>
+  <!-- overlay -->
+  <rect x="440" y="168" width="150" height="32" rx="3" fill="#1c1c1c" stroke="#38bdf8" stroke-width="1.6"/>
+  <rect x="450" y="177" width="22" height="15" fill="#fff"/><rect x="450" y="177" width="7" height="15" fill="#1d4ed8"/><rect x="465" y="177" width="7" height="15" fill="#dc2626"/>
+  <text x="480" y="189" font-size="12" font-weight="700" style="fill:#fff">203.0.113.42</text>
+  <!-- tray -->
+  <rect x="600" y="160" width="110" height="48" fill="#1f2937"/>
+  <text x="612" y="189" font-size="12" style="fill:#cbd5e1">^  ▭  🔊  21:15</text>
+  <!-- annotations -->
+  <path class="ln" d="M515,150 L515,166" marker-end="url(#a4)"/>
+  <text class="lb" x="515" y="143" text-anchor="middle">OverlayForm</text>
+  <path class="ln" d="M655,246 L655,212" marker-end="url(#a4)"/>
+  <text class="s" x="708" y="258" text-anchor="end">TrayNotifyWnd — опорная точка</text>
+  <path class="ln" d="M440,244 L500,212" marker-end="url(#a4)"/>
+  <text class="s" x="396" y="258" text-anchor="middle">окно ставится слева от неё с отступом</text>
+  <rect x="262" y="168" width="150" height="32" rx="3" fill="none" stroke="#94a3b8" stroke-dasharray="4 3"/>
+  <text class="s" x="337" y="226" text-anchor="middle">режим «по центру»</text>
+</svg>
+<figcaption>Рис. 4. Схема на панели внизу. Размеры в пикселях масштабируются по DPI; цвета — по светлой/тёмной теме Windows.</figcaption>
+</figure>
+<table>
+<tr><th style="width:30%">Ситуация</th><th>Поведение</th></tr>
+<tr><td>Полноэкранная игра, видео, презентация</td><td>Окно скрывается (<code>SHQueryUserNotificationState</code> и проверка окна на весь монитор).</td></tr>
+<tr><td>Автоскрытие панели</td><td>Окно показывается только пока панель выдвинута.</td></tr>
+<tr><td>Панель сверху, слева, справа</td><td>Определяется сторона; у вертикальной панели окно ставится рядом с ней над областью уведомлений.</td></tr>
+<tr><td>Клик по панели задач</td><td>Панель поднимает себя над topmost-окнами, поэтому таймер раз в секунду возвращает окно наверх.</td></tr>
+<tr><td>Открыто меню</td><td>Окно «на паузе» и не поднимается, чтобы не перекрыть пункты меню.</td></tr>
+</table>
+
+<h2 class="pb"><span>6.</span> Сборка и поставка</h2>
+<figure>
+<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+  </defs>
+  <rect class="box" x="10" y="20" width="150" height="56" rx="8"/>
+  <text class="t" x="85" y="42" text-anchor="middle">Исходники</text><text class="s" x="85" y="58" text-anchor="middle">src/InternetIPTaskbar/*.cs</text>
+  <rect class="box" x="10" y="96" width="150" height="56" rx="8"/>
+  <text class="t" x="85" y="118" text-anchor="middle">Ресурсы</text><text class="s" x="85" y="134" text-anchor="middle">Flags/*.png · assets/app.ico</text>
+
+  <rect class="bg" x="200" y="42" width="150" height="86" rx="8"/>
+  <text class="t" x="275" y="68" text-anchor="middle">dotnet publish</text>
+  <text class="s" x="275" y="86" text-anchor="middle">self-contained win-x64</text>
+  <text class="s" x="275" y="101" text-anchor="middle">один сжатый exe</text>
+  <text class="s" x="275" y="116" text-anchor="middle">≈ 68 МБ</text>
+
+  <rect class="ui" x="390" y="42" width="150" height="86" rx="8"/>
+  <text class="t" x="465" y="68" text-anchor="middle">Inno Setup 6</text>
+  <text class="s" x="465" y="86" text-anchor="middle">installer/*.iss</text>
+  <text class="s" x="465" y="101" text-anchor="middle">версия читается из exe</text>
+
+  <rect class="xc" x="570" y="20" width="140" height="56" rx="8"/>
+  <text class="t" x="640" y="42" text-anchor="middle">Setup_vX.Y.Z.exe</text><text class="s" x="640" y="58" text-anchor="middle">≈ 66 МБ</text>
+  <rect class="xc" x="570" y="96" width="140" height="56" rx="8"/>
+  <text class="t" x="640" y="118" text-anchor="middle">GitHub Release</text><text class="s" x="640" y="134" text-anchor="middle">+ SHA256SUMS</text>
+
+  <path class="ln" d="M160,48 L198,76" marker-end="url(#a5)"/>
+  <path class="ln" d="M160,124 L198,100" marker-end="url(#a5)"/>
+  <path class="ln" d="M350,85 L388,85" marker-end="url(#a5)"/>
+  <path class="ln" d="M540,70 L568,52" marker-end="url(#a5)"/>
+  <path class="ln" d="M640,76 L640,94" marker-end="url(#a5)"/>
+  <text class="s" x="275" y="150" text-anchor="middle">build-installer.ps1</text>
+  <text class="s" x="640" y="170" text-anchor="middle">release.yml (GitHub Actions)</text>
+
+  <rect class="grpx" x="10" y="190" width="700" height="94" rx="10"/>
+  <text class="g" x="22" y="208" style="fill:#a16207">НА КОМПЬЮТЕРЕ ПОЛЬЗОВАТЕЛЯ (права администратора не нужны)</text>
+  <text class="s" x="24" y="230">Программа:   %LOCALAPPDATA%\Programs\InternetIPTaskbar\  (exe + unins000.exe)</text>
+  <text class="s" x="24" y="247">Данные:        %LOCALAPPDATA%\InternetIPTaskbar\  (settings.json · logs\ · flags-w80\)</text>
+  <text class="s" x="24" y="264">Реестр:         HKCU\…\Uninstall (запись об установке) · HKCU\…\Run (автозапуск, если выбран)</text>
+</svg>
+<figcaption>Рис. 5. От исходников до релиза на GitHub. Версия задаётся один раз — в <code>InternetIPTaskbar.csproj</code>.</figcaption>
+</figure>
+
+<h2><span>7.</span> Решения, которые стоит знать</h2>
+<div class="cols">
+  <div class="card"><h3>Потоки</h3><p>Состояние живёт только в фоновой задаче; наружу уходят неизменяемые <code>Snapshot</code>, поэтому блокировок в интерфейсе нет. <code>Reevaluate()</code> пересчитывает тревогу из последнего снимка без обращения к сети.</p></div>
+  <div class="card"><h3>Устойчивость</h3><p>Каждый запрос на новом соединении (<code>Connection: close</code>): иначе после смены VPN запрос мог бы пойти по старому маршруту. Сбой → серый IP, три подряд → «нет сети».</p></div>
+  <div class="card"><h3>Окно</h3><p>Обычная форма с <code>WS_EX_NOACTIVATE | TOOLWINDOW</code>. Пустой <code>ContextMenuStrip</code> WinForms молча не показывает, поэтому меню строится перед показом.</p></div>
+  <div class="card"><h3>Один экземпляр</h3><p>Мьютекс без версии — после обновления не работают две копии. Для тестов вторую копию собирают с другим именем мьютекса и папкой данных.</p></div>
+</div>
+
+<h2><span>8.</span> Известные ограничения</h2>
+<ul>
+  <li>Поддерживается только основная панель задач; на Windows 11 и при нескольких мониторах поведение не проверялось.</li>
+  <li>Автоматических тестов нет: логика проверялась вручную, отдельными тестовыми программами и запуском приложения.</li>
+  <li>Установщик не подписан цифровой подписью — SmartScreen и антивирусы могут предупреждать.</li>
+</ul>
+
+</body>
+</html>
