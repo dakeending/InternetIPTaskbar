@@ -80,15 +80,26 @@ internal static class Strings
 
     public static string HomeNotSetTitle => Pick("Real data is not set", "Реальные данные не заданы", "尚未設定真實資料");
     public static string HomeNotSetBody => Pick(
-        "Turn the VPN off and choose “Remember current IP, range and country as real”.",
-        "Отключите VPN и выберите «Запомнить текущие IP, диапазон и страну как реальные».",
-        "請先關閉 VPN，然後選擇「記住目前的 IP、範圍和國家為真實資料」。");
+        "Turn the VPN off and use one of the “Remember current …” items.",
+        "Отключите VPN и выберите один из пунктов «Запомнить текущий …».",
+        "請先關閉 VPN，然後選擇其中一個「記住目前的…」項目。");
     public static string HomeSavedTitle => Pick("Real data saved", "Реальные данные сохранены", "已儲存真實資料");
 
-    public static string HomeSavedBody(string? range, string? country) => Pick(
-        $"IP range {range ?? "?"}, country {country ?? "?"}. The alert works for the mode you chose.",
-        $"Диапазон IP {range ?? "?"}, страна {country ?? "?"}. Тревога работает по выбранному режиму.",
-        $"IP 範圍 {range ?? "?"}，國家或地區 {country ?? "?"}。警報會按你選擇的模式運作。");
+    public static string HomeSavedBody(AlertMode mode, string value) => mode switch
+    {
+        AlertMode.ByRange => Pick(
+            $"Real IP range: {value}. Alert when you go online from this range.",
+            $"Реальный диапазон IP: {value}. Тревога при выходе из этого диапазона.",
+            $"真實 IP 範圍：{value}。從此範圍上網時會發出警報。"),
+        AlertMode.ByCountry => Pick(
+            $"Real country: {value}. Alert when you go online from this country.",
+            $"Реальная страна: {value}. Тревога при выходе из этой страны.",
+            $"真實國家或地區：{value}。從此國家或地區上網時會發出警報。"),
+        _ => Pick(
+            $"Real IP: {value}. Alert when you go online with this IP.",
+            $"Реальный IP: {value}. Тревога при выходе под этим IP.",
+            $"真實 IP：{value}。使用此 IP 上網時會發出警報。")
+    };
 
     public static string UninstallTitle => Pick("Uninstall", "Удаление", "解除安裝");
     public static string UninstallFailed(string message) => Pick(
@@ -113,17 +124,33 @@ internal static class Strings
     public static string PlacementCenter => Pick("Centered on the taskbar", "По центру панели", "工作列中央");
     public static string VpnGuard => Pick("VPN guard", "Контроль VPN", "VPN 守護");
     public static string GuardOff => Pick("Off", "Выключен", "關閉");
-    public static string GuardByIp => Pick("Alert when I go online with my real IP", "Тревога при выходе под моим реальным IP", "使用真實 IP 上網時警報");
-    public static string GuardByRange => Pick("Alert when I go online from my real IP range", "Тревога при выходе из моего реального диапазона IP", "使用真實 IP 範圍上網時警報");
-    public static string GuardByCountry => Pick("Alert when I go online from my real country", "Тревога при выходе из моей реальной страны", "從真實所在的國家或地區上網時警報");
-    public static string HomeIpLine(string? ip) => Pick($"Real IP: {ip ?? "not set"}", $"Реальный IP: {ip ?? "не задан"}", $"真實 IP：{ip ?? "未設定"}");
-    public static string HomeRangeLine(string? r) => Pick($"Real IP range: {r ?? "not set"}", $"Реальный диапазон IP: {r ?? "не задан"}", $"真實 IP 範圍：{r ?? "未設定"}");
-    public static string HomeCountryLine(string? c) => Pick($"Real country: {c ?? "not set"}", $"Реальная страна: {c ?? "не задана"}", $"真實國家或地區：{c ?? "未設定"}");
-    public static string RememberHome => Pick(
-        "Remember current IP, range and country as real (turn the VPN off first)",
-        "Запомнить текущие IP, диапазон и страну как реальные (отключите VPN)",
-        "記住目前的 IP、範圍和國家為真實資料（請先關閉 VPN）");
-    public static string ForgetHome => Pick("Forget the real IP, range and country", "Забыть реальные IP, диапазон и страну", "清除真實資料");
+    // the three alert modes, each with its remembered value
+    public static string GuardByIp(string? ip) => Pick(
+        $"Alert on my real IP — {ip ?? "not set"}",
+        $"Тревога по реальному IP — {ip ?? "не задан"}",
+        $"按真實 IP 警報 — {ip ?? "未設定"}");
+    public static string GuardByRange(string? range) => Pick(
+        $"Alert on my real IP range — {range ?? "not set"}",
+        $"Тревога по реальному диапазону IP — {range ?? "не задан"}",
+        $"按真實 IP 範圍警報 — {range ?? "未設定"}");
+    public static string GuardByCountry(string? country) => Pick(
+        $"Alert on my real country — {country ?? "not set"}",
+        $"Тревога по реальной стране — {country ?? "не задана"}",
+        $"按真實國家或地區警報 — {country ?? "未設定"}");
+
+    public static string RememberIp => Pick(
+        "Remember current IP as real (turn the VPN off first)",
+        "Запомнить текущий IP как реальный (отключите VPN)",
+        "記住目前的 IP 為真實 IP（請先關閉 VPN）");
+    public static string RememberRange => Pick(
+        "Remember current IP range as real",
+        "Запомнить текущий диапазон IP как реальный",
+        "記住目前的 IP 範圍為真實範圍");
+    public static string RememberCountry => Pick(
+        "Remember current country as real",
+        "Запомнить текущую страну как реальную",
+        "記住目前的國家或地區為真實所在地");
+    public static string ForgetHome => Pick("Forget the real data", "Забыть реальные данные", "清除真實資料");
     public static string Horn => Pick("Horn on VPN alert", "Гудок при тревоге VPN", "警報時響起汽笛");
     public static string CheckIpv6 => Pick("Check IPv6", "Проверять IPv6", "檢查 IPv6");
     public static string StartWithWindows => Pick("Start with Windows", "Запускать при входе в Windows", "隨 Windows 啟動");

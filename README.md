@@ -17,7 +17,7 @@ A tiny Windows utility that shows your **public IP address and the flag of the c
 - **Tray icon** with the flag; the tooltip shows IP, country and ISP. Double-click copies the IP.
 - **Reliable detection:** two services are asked in parallel, a third only if they disagree. Country and ISP are looked up only when the IP changes.
 - **Instant reaction to VPN changes:** the app listens for network events and re-checks right after a VPN is switched on or off (plus a regular interval: 1, 3, 5, 30 or 60 s).
-- **VPN guard:** remember your real IP, IP range (the /24 network of that IP) or country (with the VPN off) and choose which one to watch. If you ever go online with it, the plate blinks bright orange (3 Hz for 10 s, then stays orange) and a notification appears; an optional double steamship horn can sound too.
+- **VPN guard:** three independent choices - your real IP, your real IP range (the /24 network of that IP) or your real country. Remember the one you need (with the VPN off): IP for a fixed address, range when the address changes within your provider's network, country when it changes more widely. If you ever go online with it, the plate blinks bright orange (3 Hz for 10 s, then stays orange) and a notification appears; an optional double steamship horn can sound too.
 - **IPv6 leak hint:** shows your IPv6 address and warns when it comes from a different country than IPv4.
 - **Honest states:** the plate is green when everything is fine and grey while there is no network or the IP is still being detected; a stale IP is dimmed, and "no network" is shown instead of a misleading old address. The flag has a thin white outline.
 - **Per-monitor DPI, any taskbar edge, auto-hide taskbar.**
@@ -43,7 +43,7 @@ Right-click the tray icon (or click the IP window) to open the menu.
 | Check now | Runs a check immediately |
 | Settings → Check interval | 1, 3, 5, 30 or 60 seconds (default 30) |
 | Settings → Position | Next to the notification area, or centred |
-| Settings → VPN guard | Off / alert on real IP / on real IP range / on real country; remember or forget the real values |
+| Settings → VPN guard | Off / alert on real IP / on real IP range / on real country (the remembered value is shown next to each); "Remember current IP / IP range / country" stores just that value and switches to it |
 | Settings → Language | Auto (Windows), English, Русский, 繁體中文（香港） |
 | Settings → Horn on VPN alert | Double steamship horn on alarm (off by default) |
 | Settings → Check IPv6 | Show IPv6 and warn about leaks |

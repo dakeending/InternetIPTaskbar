@@ -151,7 +151,16 @@ public class StringsTests
                 Assert.Contains("5", Strings.Seconds(5));
                 Assert.Contains("1.2.3", Strings.Exit("1.2.3"));
                 foreach (var mode in new[] { AlertMode.ByIp, AlertMode.ByCountry, AlertMode.ByRange })
+                {
                     Assert.Contains("203.0.113.7", Strings.AlertBody(mode, "203.0.113.7", "NL"));
+                    Assert.Contains("VALUE-42", Strings.HomeSavedBody(mode, "VALUE-42"));
+                }
+                // the three guard choices show their remembered value, or a "not set" text when empty
+                Assert.Contains("203.0.113.7", Strings.GuardByIp("203.0.113.7"));
+                Assert.Contains("203.0.113.0/24", Strings.GuardByRange("203.0.113.0/24"));
+                Assert.Contains("NL", Strings.GuardByCountry("NL"));
+                Assert.NotEqual(Strings.GuardByIp(null), Strings.GuardByRange(null));
+                Assert.NotEqual(Strings.GuardByRange(null), Strings.GuardByCountry(null));
             }
         }
         finally { Strings.Language = old; }

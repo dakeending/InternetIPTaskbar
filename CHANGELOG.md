@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-09
+
+### Changed
+- VPN guard: three independent choices - real IP, real IP range (/24) or real country. Each "Remember current ..." item stores only its own value and switches the alert to that mode; the remembered values are shown next to the modes.
+
 ## [2.1.0] - 2026-10-09
 
 ### Added
@@ -47,6 +52,7 @@ First public release. A rewrite of the earlier private 1.x prototype.
 - "No network" is shown instead of an outdated IP when every lookup fails.
 - The tray menu no longer crashes while it is rebuilt, and the IP window no longer covers an open menu.
 
-[Unreleased]: https://github.com/dakeending/InternetIPTaskbar/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/dakeending/InternetIPTaskbar/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/dakeending/InternetIPTaskbar/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/dakeending/InternetIPTaskbar/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/dakeending/InternetIPTaskbar/releases/tag/v2.0.0

@@ -246,14 +246,14 @@ internal sealed class TrayApp : ApplicationContext
 
         var guard = new ToolStripMenuItem(Strings.VpnGuard);
         Add(guard, Strings.GuardOff, () => SetAlert(AlertMode.Off), checkedState: settings.AlertMode == AlertMode.Off);
-        Add(guard, Strings.GuardByIp, () => SetAlert(AlertMode.ByIp), checkedState: settings.AlertMode == AlertMode.ByIp);
-        Add(guard, Strings.GuardByRange, () => SetAlert(AlertMode.ByRange), checkedState: settings.AlertMode == AlertMode.ByRange);
-        Add(guard, Strings.GuardByCountry, () => SetAlert(AlertMode.ByCountry), checkedState: settings.AlertMode == AlertMode.ByCountry);
+        // three independent choices: watch the exact IP, its /24 range, or the country
+        Add(guard, Strings.GuardByIp(settings.HomeIp), () => SetAlert(AlertMode.ByIp), checkedState: settings.AlertMode == AlertMode.ByIp);
+        Add(guard, Strings.GuardByRange(settings.HomeRange), () => SetAlert(AlertMode.ByRange), checkedState: settings.AlertMode == AlertMode.ByRange);
+        Add(guard, Strings.GuardByCountry(settings.HomeCountry), () => SetAlert(AlertMode.ByCountry), checkedState: settings.AlertMode == AlertMode.ByCountry);
         guard.DropDownItems.Add(new ToolStripSeparator());
-        Add(guard, Strings.HomeIpLine(settings.HomeIp), enabled: false);
-        Add(guard, Strings.HomeRangeLine(settings.HomeRange), enabled: false);
-        Add(guard, Strings.HomeCountryLine(settings.HomeCountry), enabled: false);
-        Add(guard, Strings.RememberHome, RememberHome, enabled: snap.Ip is not null);
+        Add(guard, Strings.RememberIp, () => RememberHome(AlertMode.ByIp), enabled: snap.Ip is not null);
+        Add(guard, Strings.RememberRange, () => RememberHome(AlertMode.ByRange), enabled: IpRange.FromIp(snap.Ip) is not null);
+        Add(guard, Strings.RememberCountry, () => RememberHome(AlertMode.ByCountry), enabled: snap.Country is not null);
         Add(guard, Strings.ForgetHome, () =>
         {
             settings.HomeIp = settings.HomeRange = settings.HomeCountry = null;
@@ -369,16 +369,23 @@ internal sealed class TrayApp : ApplicationContext
         monitor.Reevaluate();
     }
 
-    void RememberHome()
+    /// <summary>Remembers only the value for <paramref name="mode"/> (IP, its /24 range, or the country) and switches the alert to that mode.</summary>
+    void RememberHome(AlertMode mode)
     {
-        settings.HomeIp = snap.Ip;
-        settings.HomeRange = IpRange.FromIp(snap.Ip);
-        settings.HomeCountry = snap.Country;
-        if (settings.AlertMode == AlertMode.Off) settings.AlertMode = AlertMode.ByIp;
+        string? value;
+        switch (mode)
+        {
+            case AlertMode.ByIp: value = settings.HomeIp = snap.Ip; break;
+            case AlertMode.ByRange: value = settings.HomeRange = IpRange.FromIp(snap.Ip); break;
+            case AlertMode.ByCountry: value = settings.HomeCountry = snap.Country; break;
+            default: return;
+        }
+        if (string.IsNullOrEmpty(value)) return;
+        settings.AlertMode = mode;
         settings.Save();
-        Log.Info($"HOME remembered: range={settings.HomeRange} country={snap.Country} (IP saved to settings.json)");
+        Log.Info($"HOME remembered: mode={mode}" + (mode == AlertMode.ByIp ? " (IP saved to settings.json)" : $" value={value}"));
         monitor.Reevaluate();
-        tray.ShowBalloonTip(5000, Strings.HomeSavedTitle, Strings.HomeSavedBody(settings.HomeRange, snap.Country), ToolTipIcon.Info);
+        tray.ShowBalloonTip(5000, Strings.HomeSavedTitle, Strings.HomeSavedBody(mode, value), ToolTipIcon.Info);
     }
 
     void SetLanguage(UiLanguage language)
