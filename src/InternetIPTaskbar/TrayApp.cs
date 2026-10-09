@@ -28,6 +28,7 @@ internal sealed class TrayApp : ApplicationContext
     public TrayApp()
     {
         Log.DebugEnabled = settings.DebugLog;
+        Strings.Language = settings.Language;
         Log.Info($"START v{AppInfo.Version} interval={settings.IntervalSeconds}s placement={settings.Placement} alert={settings.AlertMode}");
 
         overlay = new OverlayForm(settings);
@@ -64,7 +65,7 @@ internal sealed class TrayApp : ApplicationContext
     void OnSystemChanged(object? sender, EventArgs e) => ui.Post(_ =>
     {
         if (disposed) return;
-        overlay.ApplyTheme();
+        overlay.ApplyColors();
         overlay.RefreshLayout();
         overlay.Invalidate();
     }, null);
@@ -94,7 +95,7 @@ internal sealed class TrayApp : ApplicationContext
             Log.Info($"ALERT: exit matches home ({settings.AlertMode}) ip={s.Ip} country={s.Country}");
             if (settings.AlertSound) HornSound.Play();
             tray.ShowBalloonTip(8000, Strings.AlertTitle,
-                Strings.AlertBody(settings.AlertMode == AlertMode.ByIp, s.Ip, s.Country), ToolTipIcon.Warning);
+                Strings.AlertBody(settings.AlertMode, s.Ip, s.Country), ToolTipIcon.Warning);
         }
         if (s.Ipv6Mismatch && !prev.Ipv6Mismatch)
         {
@@ -175,8 +176,18 @@ internal sealed class TrayApp : ApplicationContext
                 g.FillRectangle(b, rect);
                 DrawCenteredText(g, snap.Country ?? "IP", rect, snap.Country is null ? 11 : 10);
             }
-            using var border = new Pen(snap.Alert ? Color.FromArgb(220, 40, 40) : Color.FromArgb(150, 40, 40, 40), snap.Alert ? 3 : 1);
-            g.DrawRectangle(border, rect);
+            if (snap.Alert)
+            {
+                using var alertBorder = new Pen(Color.FromArgb(255, 145, 0), 3);
+                g.DrawRectangle(alertBorder, rect);
+            }
+            else
+            {
+                // a thin crisp white outline around the flag (no anti-aliasing for a sharp 1 px line)
+                g.SmoothingMode = SmoothingMode.None;
+                using var border = new Pen(Color.White, 1);
+                g.DrawRectangle(border, rect.X - 1, rect.Y - 1, rect.Width + 1, rect.Height + 1);
+            }
         }
         var handle = bmp.GetHicon();
         icon = Icon.FromHandle(handle); // does not own the handle; it is released in UpdateTray
@@ -236,19 +247,28 @@ internal sealed class TrayApp : ApplicationContext
         var guard = new ToolStripMenuItem(Strings.VpnGuard);
         Add(guard, Strings.GuardOff, () => SetAlert(AlertMode.Off), checkedState: settings.AlertMode == AlertMode.Off);
         Add(guard, Strings.GuardByIp, () => SetAlert(AlertMode.ByIp), checkedState: settings.AlertMode == AlertMode.ByIp);
+        Add(guard, Strings.GuardByRange, () => SetAlert(AlertMode.ByRange), checkedState: settings.AlertMode == AlertMode.ByRange);
         Add(guard, Strings.GuardByCountry, () => SetAlert(AlertMode.ByCountry), checkedState: settings.AlertMode == AlertMode.ByCountry);
         guard.DropDownItems.Add(new ToolStripSeparator());
         Add(guard, Strings.HomeIpLine(settings.HomeIp), enabled: false);
+        Add(guard, Strings.HomeRangeLine(settings.HomeRange), enabled: false);
         Add(guard, Strings.HomeCountryLine(settings.HomeCountry), enabled: false);
         Add(guard, Strings.RememberHome, RememberHome, enabled: snap.Ip is not null);
         Add(guard, Strings.ForgetHome, () =>
         {
-            settings.HomeIp = settings.HomeCountry = null;
+            settings.HomeIp = settings.HomeRange = settings.HomeCountry = null;
             settings.AlertMode = AlertMode.Off;
             settings.Save();
             monitor.Reevaluate();
         });
         prefs.DropDownItems.Add(guard);
+
+        var language = new ToolStripMenuItem(Strings.LanguageMenu);
+        Add(language, Strings.LanguageAuto, () => SetLanguage(UiLanguage.Auto), checkedState: settings.Language == UiLanguage.Auto);
+        Add(language, Strings.LanguageEnglish, () => SetLanguage(UiLanguage.English), checkedState: settings.Language == UiLanguage.English);
+        Add(language, Strings.LanguageRussian, () => SetLanguage(UiLanguage.Russian), checkedState: settings.Language == UiLanguage.Russian);
+        Add(language, Strings.LanguageChinese, () => SetLanguage(UiLanguage.ChineseHK), checkedState: settings.Language == UiLanguage.ChineseHK);
+        prefs.DropDownItems.Add(language);
 
         prefs.DropDownItems.Add(new ToolStripSeparator());
         Add(prefs, Strings.Horn, () =>
@@ -338,6 +358,7 @@ internal sealed class TrayApp : ApplicationContext
     void SetAlert(AlertMode mode)
     {
         if (mode == AlertMode.ByIp && string.IsNullOrEmpty(settings.HomeIp)
+            || mode == AlertMode.ByRange && string.IsNullOrEmpty(settings.HomeRange)
             || mode == AlertMode.ByCountry && string.IsNullOrEmpty(settings.HomeCountry))
         {
             tray.ShowBalloonTip(5000, Strings.HomeNotSetTitle, Strings.HomeNotSetBody, ToolTipIcon.Info);
@@ -351,12 +372,23 @@ internal sealed class TrayApp : ApplicationContext
     void RememberHome()
     {
         settings.HomeIp = snap.Ip;
+        settings.HomeRange = IpRange.FromIp(snap.Ip);
         settings.HomeCountry = snap.Country;
         if (settings.AlertMode == AlertMode.Off) settings.AlertMode = AlertMode.ByIp;
         settings.Save();
-        Log.Info($"HOME remembered: country={snap.Country} (IP saved to settings.json)");
+        Log.Info($"HOME remembered: range={settings.HomeRange} country={snap.Country} (IP saved to settings.json)");
         monitor.Reevaluate();
-        tray.ShowBalloonTip(5000, Strings.HomeSavedTitle, Strings.HomeSavedBody(snap.Country), ToolTipIcon.Info);
+        tray.ShowBalloonTip(5000, Strings.HomeSavedTitle, Strings.HomeSavedBody(settings.HomeRange, snap.Country), ToolTipIcon.Info);
+    }
+
+    void SetLanguage(UiLanguage language)
+    {
+        settings.Language = language;
+        settings.Save();
+        Strings.Language = language;
+        UpdateTray();           // tooltip and icon text
+        overlay.RefreshLayout();   // "no network" text changes width
+        overlay.Invalidate();
     }
 
     void CopyToClipboard(string? value, string message)

@@ -10,7 +10,7 @@
     <RootNamespace>InternetIPTaskbar</RootNamespace>
 
     <!-- The single place where the version is set: the installer, User-Agent and log read it from here. -->
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 
     <Product>InternetIPTaskbar</Product>

@@ -41,12 +41,13 @@ Cross-cutting modules: `Settings` (JSON), `Log` (rotating file), `AppInfo` (vers
 | `IpMonitor.cs` | The single source of truth about the network. Background loop, states `Starting / Ok / Stale / Offline`, alert and IPv6-mismatch evaluation, reaction to network events. |
 | `IpClient.cs` | Static network layer: IPv4 from two services (a third on disagreement), IPv6, geolocation via ipinfo -> ipwho.is -> ipapi.co with a per-IP cache. |
 | `FlagStore.cs` | Flag: embedded resource -> disk cache -> flagcdn.com. A corrupt cache file is deleted; only decodable images are cached. |
-| `OverlayForm.cs` | Presentation only: flag or country code, text, size and position, colours by theme and alert. Never takes focus; a click opens the menu. |
+| `OverlayForm.cs` | Presentation only: flag (with a thin white outline) or country code, text, size and position, plate colour by state (green / grey / orange), and the 3 Hz, 10-second alert blink. Never takes focus; a click opens the menu. |
 | `Taskbar.cs` | Taskbar position (any edge, auto-hide, notification area) and full-screen application detection. |
 | `NativeMethods.cs` | P/Invoke declarations. |
 | `Settings.cs`, `Log.cs`, `AppInfo.cs` | Settings JSON (atomic write), rotating log, version and paths. |
 | `Autostart.cs`, `HornSound.cs` | Autostart via `HKCU\...\Run`; the double horn, synthesised into a WAV on first use. |
-| `Strings.cs` | All user-visible text, English and Russian. |
+| `Strings.cs` | All user-visible text in English, Russian and Traditional Chinese (Hong Kong); the language follows Windows or is chosen in the menu. |
+| `IpRange.cs` | IPv4 CIDR helpers: the /24 network of the remembered real IP and membership tests for the "real IP range" alert mode. |
 
 ## One check, end to end
 
@@ -95,7 +96,9 @@ stateDiagram-v2
 | `Stale` | the request failed (1-2 times in a row) | the previous IP, greyed out |
 | `Offline` | 3 failures in a row or the network is unavailable | "no network" |
 
-After a failure the loop retries every 5 s instead of the normal interval. The **alert** is a separate flag on top of `Ok`/`Stale`: the IP or the country equals the remembered "real" value. The window turns red, a notification is shown and, if enabled, the horn plays.
+After a failure the loop retries every 5 s instead of the normal interval. The **alert** is a separate flag on top of `Ok`/`Stale`: the IP, the IP range (/24 of the remembered IP) or the country equals the remembered "real" value, depending on the chosen mode. The plate blinks bright orange at 3 Hz for 10 seconds and then stays orange; a notification is shown and, if enabled, the horn plays.
+
+Plate colours: **green** for `Ok` and `Stale` (the text is dimmed when stale), **grey** for `Starting` and `Offline`, **orange** on an alert.
 
 ## Design decisions
 

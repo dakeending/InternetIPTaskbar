@@ -5,7 +5,10 @@ namespace InternetIPTaskbar;
 
 internal enum Placement { NearTray, Center }
 
-internal enum AlertMode { Off, ByIp, ByCountry }
+internal enum AlertMode { Off, ByIp, ByCountry, ByRange }
+
+/// <summary>Auto follows the Windows display language.</summary>
+internal enum UiLanguage { Auto, English, Russian, ChineseHK }
 
 internal sealed class Settings
 {
@@ -16,6 +19,9 @@ internal sealed class Settings
     public AlertMode AlertMode { get; set; } = AlertMode.Off;
     public string? HomeIp { get; set; }
     public string? HomeCountry { get; set; }
+    /// <summary>The remembered real IP range in CIDR form, derived from <see cref="HomeIp"/> (e.g. "203.0.113.0/24").</summary>
+    public string? HomeRange { get; set; }
+    public UiLanguage Language { get; set; } = UiLanguage.Auto;
     public bool AlertSound { get; set; }
     public bool CheckIpv6 { get; set; } = true;
     public bool DebugLog { get; set; }

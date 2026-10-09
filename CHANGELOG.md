@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-09
+
+### Added
+- Traditional Chinese (Hong Kong) user interface and a language switch in *Settings -> Language* (Auto / English / Russian / Traditional Chinese).
+- VPN guard mode "real IP range": the /24 network of the remembered real IP is stored and watched in addition to the real IP and the real country.
+
+### Changed
+- Plate colours: green when everything is fine, grey while there is no network or the IP is being detected, bright orange on an alert.
+- The alert plate blinks at 3 Hz for 10 seconds and then stays steady orange while the alert lasts.
+- A thin white outline around the flag (window and tray icon).
+- The plate no longer follows the Windows light/dark theme.
+
 ## [2.0.0] - 2026-10-06
 
 First public release. A rewrite of the earlier private 1.x prototype.
@@ -35,5 +47,6 @@ First public release. A rewrite of the earlier private 1.x prototype.
 - "No network" is shown instead of an outdated IP when every lookup fails.
 - The tray menu no longer crashes while it is rebuilt, and the IP window no longer covers an open menu.
 
-[Unreleased]: https://github.com/dakeending/InternetIPTaskbar/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/dakeending/InternetIPTaskbar/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/dakeending/InternetIPTaskbar/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/dakeending/InternetIPTaskbar/releases/tag/v2.0.0

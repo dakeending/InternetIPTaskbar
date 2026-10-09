@@ -59,7 +59,7 @@ Short imperative subject (about 70 characters), a blank line, then an explanatio
 
 ## Translations
 
-All user-visible text is in [`src/InternetIPTaskbar/Strings.cs`](src/InternetIPTaskbar/Strings.cs). Each string is a pair (English, Russian) chosen by `Pick`. To add a language, extend `Pick` and supply a translation for every string; the installer texts are in `installer/InternetIPTaskbar.iss` (`[CustomMessages]`).
+All user-visible text is in [`src/InternetIPTaskbar/Strings.cs`](src/InternetIPTaskbar/Strings.cs). Each string is a triple (English, Russian, Traditional Chinese as written in Hong Kong) chosen by `Pick`. The language follows Windows and can be forced in *Settings -> Language*. To add a language, extend `Lang`, `Pick` and the `UiLanguage` enum, supply a translation for every string and add a menu entry; the installer texts are in `installer/InternetIPTaskbar.iss` (`[CustomMessages]`, currently English and Russian). Please keep the English wording simple.
 
 ## Releasing (maintainers)
 

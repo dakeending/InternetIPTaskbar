@@ -169,8 +169,9 @@
 <tr><td><code>src/IpMonitor.cs</code></td><td>Единственный источник истины о сети. Фоновый цикл, состояния <code>Starting / Ok / Stale / Offline</code>, расчёт тревоги и IPv6-несоответствия, реакция на события сети.</td></tr>
 <tr><td><code>src/IpClient.cs</code></td><td>IPv4 по двум сервисам (третий — при расхождении), IPv6, геоданные цепочкой ipinfo → ipwho.is → ipapi.co с кэшем по IP.</td></tr>
 <tr><td><code>src/FlagStore.cs</code></td><td>Флаг: ресурс в exe → кэш на диске → flagcdn.com. Битый кэш удаляется, на диск пишется только декодированное.</td></tr>
-<tr><td><code>src/OverlayForm.cs</code></td><td>Только отображение: флаг или код страны, текст, размер и положение, цвета по теме и тревоге. Без фокуса, щелчок открывает меню.</td></tr>
+<tr><td><code>src/OverlayForm.cs</code></td><td>Только отображение: флаг (с тонкой белой каймой) или код страны, текст, размер и положение, цвет плашки по состоянию (зелёный / серый / оранжевый) и мигание тревоги 3 Гц × 10 с. Без фокуса, щелчок открывает меню.</td></tr>
 <tr><td><code>src/Taskbar.cs</code></td><td>Положение панели (любая сторона, автоскрытие, область уведомлений) и определение полноэкранного приложения.</td></tr>
+<tr><td><code>Strings / IpRange</code></td><td>Весь текст интерфейса на трёх языках (английский, русский, традиционный китайский) и помощники CIDR для режима «диапазон IP».</td></tr>
 <tr><td><code>Settings / Log / AppInfo</code></td><td>Настройки в JSON (атомарная запись), лог с ротацией, версия и пути.</td></tr>
 <tr><td><code>Autostart / HornSound</code></td><td>Автозапуск через <code>HKCU\…\Run</code>; двойной гудок, синтезируется в WAV при первом вызове.</td></tr>
 </table>
@@ -307,7 +308,7 @@
   <rect x="58" y="170" width="28" height="28" rx="3" fill="#374151"/><rect x="94" y="170" width="28" height="28" rx="3" fill="#374151"/><rect x="130" y="170" width="28" height="28" rx="3" fill="#374151"/><rect x="166" y="170" width="28" height="28" rx="3" fill="#374151"/>
   <text x="300" y="189" font-size="11" style="fill:#94a3b8" text-anchor="middle">кнопки задач</text>
   <!-- overlay -->
-  <rect x="440" y="168" width="150" height="32" rx="3" fill="#1c1c1c" stroke="#38bdf8" stroke-width="1.6"/>
+  <rect x="440" y="168" width="150" height="32" rx="3" fill="#15803d" stroke="#38bdf8" stroke-width="1.6"/>
   <rect x="450" y="177" width="22" height="15" fill="#fff"/><rect x="450" y="177" width="7" height="15" fill="#1d4ed8"/><rect x="465" y="177" width="7" height="15" fill="#dc2626"/>
   <text x="480" y="189" font-size="12" font-weight="700" style="fill:#fff">203.0.113.42</text>
   <!-- tray -->
@@ -323,7 +324,7 @@
   <rect x="262" y="168" width="150" height="32" rx="3" fill="none" stroke="#94a3b8" stroke-dasharray="4 3"/>
   <text class="s" x="337" y="226" text-anchor="middle">режим «по центру»</text>
 </svg>
-<figcaption>Рис. 4. Схема на панели внизу. Размеры в пикселях масштабируются по DPI; цвета — по светлой/тёмной теме Windows.</figcaption>
+<figcaption>Рис. 4. Схема на панели внизу. Размеры в пикселях масштабируются по DPI; цвет плашки — по состоянию (зелёная, серая, оранжевая при тревоге).</figcaption>
 </figure>
 <table>
 <tr><th style="width:30%">Ситуация</th><th>Поведение</th></tr>

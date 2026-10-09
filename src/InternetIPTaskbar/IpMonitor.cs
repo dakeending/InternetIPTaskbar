@@ -184,6 +184,7 @@ internal sealed class IpMonitor : IDisposable
         {
             AlertMode.ByIp => !string.IsNullOrEmpty(settings.HomeIp) && s.Ip == settings.HomeIp,
             AlertMode.ByCountry => !string.IsNullOrEmpty(settings.HomeCountry) && s.Country == settings.HomeCountry,
+            AlertMode.ByRange => IpRange.Contains(settings.HomeRange, s.Ip),
             _ => false
         };
     }

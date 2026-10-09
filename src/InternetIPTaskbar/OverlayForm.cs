@@ -1,5 +1,4 @@
 using System.Drawing.Drawing2D;
-using Microsoft.Win32;
 using static InternetIPTaskbar.NativeMethods;
 
 namespace InternetIPTaskbar;
@@ -7,20 +6,29 @@ namespace InternetIPTaskbar;
 /// <summary>
 /// A small "flag + IP" window above the taskbar. It never takes focus; a click opens the tray menu.
 /// It hides itself for full-screen applications and while an auto-hidden taskbar is collapsed.
+/// The plate is green when everything is fine, grey while there is no network, and bright orange on an alert
+/// (blinking at 3 Hz for the first 10 seconds, then steady).
 /// </summary>
 internal sealed class OverlayForm : Form
 {
-    static readonly Color DarkBack = Color.FromArgb(28, 28, 28), DarkText = Color.White, DarkDim = Color.FromArgb(150, 150, 150);
-    static readonly Color LightBack = Color.FromArgb(243, 243, 243), LightText = Color.FromArgb(20, 20, 20), LightDim = Color.FromArgb(115, 115, 115);
-    static readonly Color AlertBack = Color.FromArgb(176, 32, 32);
+    // plate colours
+    static readonly Color Green = Color.FromArgb(21, 128, 61), GreenDimText = Color.FromArgb(200, 232, 212);
+    static readonly Color Grey = Color.FromArgb(96, 104, 116);
+    static readonly Color Orange = Color.FromArgb(255, 145, 0), OrangeText = Color.FromArgb(25, 25, 25);
+    static readonly Color OrangeOff = Color.FromArgb(92, 46, 6); // the "dark" half of a blink
+
+    public const double BlinkHz = 3;
+    public const double BlinkSeconds = 10;
 
     readonly Settings settings;
     readonly Font font = new("Segoe UI", 9.5f, FontStyle.Bold, GraphicsUnit.Point);
     readonly Font badgeFont = new("Segoe UI", 7f, FontStyle.Bold, GraphicsUnit.Point);
+    readonly System.Windows.Forms.Timer blinkTimer = new() { Interval = 40 };
 
     Snapshot snap = Snapshot.Empty;
     Bitmap? flag; // owned by TrayApp
-    bool lightTheme;
+    DateTime blinkStart;
+    bool blinkOn = true;
 
     public OverlayForm(Settings settings)
     {
@@ -35,7 +43,8 @@ internal sealed class OverlayForm : Form
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
             | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
         UpdateStyles();
-        ApplyTheme();
+        blinkTimer.Tick += (_, _) => OnBlinkTick();
+        ApplyColors();
     }
 
     /// <summary>While true the window is neither raised nor moved (otherwise it would cover an open tray menu).</summary>
@@ -64,10 +73,15 @@ internal sealed class OverlayForm : Form
 
     public void SetSnapshot(Snapshot s)
     {
+        bool wasAlert = snap.Alert;
         bool visualChange = s.State != snap.State || s.Alert != snap.Alert || s.Ip != snap.Ip || s.Country != snap.Country;
         snap = s;
+
+        if (s.Alert && !wasAlert) StartBlink();
+        else if (!s.Alert) StopBlink();
+
         if (!visualChange) return;
-        ApplyTheme();
+        ApplyColors();
         RefreshLayout();
         Invalidate();
     }
@@ -79,21 +93,56 @@ internal sealed class OverlayForm : Form
         Invalidate();
     }
 
-    public void ApplyTheme()
+    // ───────── colours and blinking ─────────
+
+    void StartBlink()
     {
-        lightTheme = IsLightTaskbar();
-        BackColor = snap.Alert ? AlertBack : lightTheme ? LightBack : DarkBack;
+        blinkStart = DateTime.UtcNow;
+        blinkOn = true;
+        blinkTimer.Start();
     }
 
-    static bool IsLightTaskbar()
+    void StopBlink()
     {
-        try
-        {
-            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-            return key?.GetValue("SystemUsesLightTheme") is int v && v == 1;
-        }
-        catch { return false; }
+        blinkTimer.Stop();
+        blinkOn = true;
     }
+
+    void OnBlinkTick()
+    {
+        var elapsed = (DateTime.UtcNow - blinkStart).TotalSeconds;
+        if (elapsed >= BlinkSeconds)
+        {
+            // blinking is over: the plate stays bright orange while the alert lasts
+            StopBlink();
+            ApplyColors();
+            Invalidate();
+            return;
+        }
+        bool on = BlinkPhaseOn(elapsed);
+        if (on == blinkOn) return;
+        blinkOn = on;
+        ApplyColors();
+        Invalidate();
+    }
+
+    /// <summary>True during the bright half of a blink cycle; <paramref name="elapsedSeconds"/> counts from the start of the alert.</summary>
+    internal static bool BlinkPhaseOn(double elapsedSeconds) => (int)(elapsedSeconds * BlinkHz * 2) % 2 == 0;
+
+    (Color Back, Color Text) PlateColors()
+    {
+        if (snap.Alert) return blinkOn ? (Orange, OrangeText) : (OrangeOff, Color.White);
+        return snap.State switch
+        {
+            NetState.Ok => (Green, Color.White),
+            NetState.Stale => (Green, GreenDimText), // one failed request: keep the plate, dim the text
+            _ => (Grey, Color.White)                 // starting or no network
+        };
+    }
+
+    public void ApplyColors() => BackColor = PlateColors().Back;
+
+    // ───────── layout and painting ─────────
 
     float Dpi => DeviceDpi / 96f;
 
@@ -121,16 +170,13 @@ internal sealed class OverlayForm : Form
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        g.Clear(BackColor);
+        var (back, text) = PlateColors();
+        g.Clear(back);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
         g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
         var lay = Measure();
-        Color text = snap.Alert ? Color.White
-            : snap.State is NetState.Stale or NetState.Offline ? (lightTheme ? LightDim : DarkDim)
-            : lightTheme ? LightText : DarkText;
-
         int x = lay.Pad;
         if (lay.BadgeW > 0)
         {
@@ -147,15 +193,22 @@ internal sealed class OverlayForm : Form
         if (flag is not null)
         {
             g.DrawImage(flag, rect);
-            using var pen = new Pen(Color.FromArgb(90, 128, 128, 128));
-            g.DrawRectangle(pen, rect.X, rect.Y, rect.Width - 1, rect.Height - 1);
-            return;
         }
-        // the flag is not loaded yet or unavailable: show the country code
-        using var fill = new SolidBrush(Color.FromArgb(110, 128, 128, 128));
-        g.FillRectangle(fill, rect);
-        TextRenderer.DrawText(g, snap.Country ?? "", badgeFont, rect, Color.White,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        else
+        {
+            // the flag is not loaded yet or unavailable: show the country code
+            using var fill = new SolidBrush(Color.FromArgb(110, 128, 128, 128));
+            g.FillRectangle(fill, rect);
+            TextRenderer.DrawText(g, snap.Country ?? "", badgeFont, rect, Color.White,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        }
+
+        // a thin white outline around the flag keeps it distinct from the plate (crisp 1 px line: no anti-aliasing)
+        var smoothing = g.SmoothingMode;
+        g.SmoothingMode = SmoothingMode.None;
+        using var pen = new Pen(Color.White, 1f);
+        g.DrawRectangle(pen, rect.X - 1, rect.Y - 1, rect.Width + 1, rect.Height + 1);
+        g.SmoothingMode = smoothing;
     }
 
     /// <summary>Recomputes size and position and shows or hides the window. Call on the UI thread.</summary>
@@ -208,11 +261,10 @@ internal sealed class OverlayForm : Form
     {
         if (disposing)
         {
+            blinkTimer.Dispose();
             font.Dispose();
             badgeFont.Dispose();
         }
         base.Dispose(disposing);
     }
 }
-
-

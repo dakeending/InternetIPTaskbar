@@ -13,4 +13,4 @@
 - [ ] `CHANGELOG.md` updated (*Unreleased*) for user-visible changes
 - [ ] Docs updated if behaviour changed
 - [ ] No new network endpoints, or they are listed in the README privacy section and `THIRD-PARTY-NOTICES.md`
-- [ ] New UI text is added to `Strings.cs` in English and Russian
+- [ ] New UI text is added to `Strings.cs` in English, Russian and Traditional Chinese
